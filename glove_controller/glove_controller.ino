@@ -8,6 +8,17 @@
 #define BTH_RX 11
 #define BTH_TX 12
 
+
+
+  // Don't use GPIO A4 and A5 as those are used for I2C connection 
+  const byte fingerPins[] = {A0, A1, A2, A3, A6};
+  const byte maxReadings[] = {230, 252, 317, 309, 305};
+
+
+
+
+
+
 float min_list[5] = {0, 0, 0, 0, 0};
 float max_list[5] = {255, 255, 255, 255, 255};
   float sampling[5] = {0, 0, 0, 0, 0}; 
@@ -50,11 +61,16 @@ void setup() {
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
 
+  // Bluetooth configuration
   //蓝牙配置
   Bth.begin(9600);
-  Bth.print("AT+ROLE=M");  //蓝牙配置为主模式
+  // Configure Bluetooth to run in master mode
+ // Bth.print("AT+ROLE=1");  //蓝牙配置为主模式
   delay(100);
-  Bth.print("AT+RESET");  //软重启蓝牙模块
+ // Bth.print("AT+NAME=Glove");
+  
+  // Soft reset the Bluetooth module
+ // Bth.print("AT+RESET");  //软重启蓝牙模块
   delay(250);
 
   //MPU6050 配置
@@ -575,6 +591,9 @@ void run3()
 
 int mode = 0;
 bool key_state = false;
+
+
+/*
 void loop() {
   finger();  //更新手指电位器数据
   update_mpu6050();  //更新倾角传感器数据
@@ -663,4 +682,36 @@ void loop() {
   }
   print_data();  //打印传感器数据便于调试
 }
+*/
 
+
+void loop() {
+
+
+
+
+  byte buf[5];
+
+
+
+
+  for(int i=0; i<5; i++){
+    int val = analogRead(fingerPins[i]);
+    // Scale raw reading into 0-255 range of a single byte
+    buf[i] = constrain(map(val, 0, maxReadings[i], 0, 255), 0, 255);
+
+    // Print raw values
+    // Serial.print(val);
+    // Print byte value
+    Serial.print(buf[i], HEX);
+    if(i<4) Serial.print(",");
+    else Serial.println("");
+    
+    
+  }
+
+  Bth.write(buf, 5);
+  Serial.write(buf, 5);
+  Serial.println("");
+  delay(100);
+}
