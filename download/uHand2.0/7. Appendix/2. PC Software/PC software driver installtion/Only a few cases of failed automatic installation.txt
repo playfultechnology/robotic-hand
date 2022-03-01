@@ -1,0 +1,2 @@
+Most computers support automatic driver installation, which needs to take a period of time. Please be patient!
+If prompted to automatically install the driver failed, then you need to manually double-click the driver file.

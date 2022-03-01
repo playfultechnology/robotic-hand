@@ -1,0 +1,2 @@
+Before using APP, Bluetooth and GPS service need to be opened first to search the Bluetooth.
+It can only be used under the Bluetooth mode.

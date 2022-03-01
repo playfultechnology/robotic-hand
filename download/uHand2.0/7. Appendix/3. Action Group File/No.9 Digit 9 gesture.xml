@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<NewDataSet>
+  <Table>
+    <ID>1</ID>
+    <Move>#1 P2215 #2 P1688 #3 P700 #4 P700 #5 P970 #6 P1500</Move>
+    <Time>T200</Time>
+    <position>POS1X=135Y=2 POS2X=279Y=23 POS3X=315Y=123 POS5X=409Y=221 POS6X=285Y=321 POS7X=337Y=419</position>
+  </Table>
+</NewDataSet>

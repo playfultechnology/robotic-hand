@@ -1,0 +1,2 @@
+Instruction:
+1. Please use Visual Studio 2015 to open the source code of the PC software, using the Microsoft WPF framework.
