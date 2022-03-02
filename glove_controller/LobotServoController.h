@@ -1,10 +1,10 @@
-﻿/******************************************************
-* FileName:      LobotServoController.h
-* Company:     Lewan Soul
-* Date:          2016/07/02  16:53
- *Last Modification Date: 201706281638
-* www.lewansoul.com
-*****************************************************/
+/*
+ * FileName:      LobotServoController.h
+ * Company:     Lewan Soul
+ * Date:          2016/07/02  16:53
+ * Last Modification Date: 201706281638
+ * www.lewansoul.com
+ */
 
 #ifndef LOBOTSERVOCONTROLLER_H
 #define LOBOTSERVOCONTROLLER_H
