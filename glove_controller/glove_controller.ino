@@ -28,9 +28,11 @@ const byte maxReadings[] = {230, 252, 317, 309, 305};
 // GLOBALS
 float min_list[5] = {0, 0, 0, 0, 0};
 float max_list[5] = {255, 255, 255, 255, 255};
-float sampling[5] = {0, 0, 0, 0, 0}; 
+// Raw input values sampled from each finger
+float sampling[5] = {0, 0, 0, 0, 0};
+// Input values after filtering/rescaling 
 float data[5] = {1500, 1500, 1500, 1500, 1500};
-uint16_t ServePwm[5] = {1500, 1500, 1500, 1500, 1500};
+// The calculated output values sent to the servo controller
 uint16_t ServoPwmSet[5] = {1500, 1500, 1500, 1500, 1500};
 bool turn_on = true;
 SoftwareSerial Bth(BTH_RX, BTH_TX);
@@ -102,7 +104,8 @@ void finger() {
   if (timer_sampling <= millis()) {
     for (int i = 0; i <5; i++) {
       sampling[i] += analogRead(fingerPins[i]);
-      sampling[i] = sampling[i] / 2.0; // Average current and previous reading
+	  // Average current and previous reading
+      sampling[i] = sampling[i] / 2.0; 
 
       // Rescale to range 500-2500, where 500=clenched, 2500=hand open
       data[i] = float_map(sampling[i], min_list[i], max_list[i], 2500, 500);
@@ -117,6 +120,7 @@ void finger() {
   // Calibration
   if (turn_on && timer_init < millis()) {
     switch (init_step) {
+	  // Steps 0-2: Flash LEDs
       case 0:
         for(int i=0; i<5; i++) { digitalWrite(ledPins[i], LOW); }
         timer_init = millis() + 20;
@@ -132,7 +136,7 @@ void finger() {
         timer_init = millis() + 50;
         init_step++;
         break;
-      // Read "max" values, when hand is clenched
+      // Step 3: Read "max" values, when hand is clenched
       case 3:
         for(int i=0; i<5; i++) { digitalWrite(ledPins[i], HIGH); }
         timer_init = millis() + 500;
@@ -148,7 +152,7 @@ void finger() {
       case 4:
         init_step++;
         break;
-      // Wait until index finger has pointed up more than 50 before proceeding
+      // Step 5: Wait until index finger has pointed up more than 50 before proceeding
       case 5:
         if ((max_list[1] - sampling[1]) > 50) {
           init_step++;
@@ -156,6 +160,7 @@ void finger() {
           timer_init = millis() + 2000;
         }
         break;
+	  // Steps 6-7: Flash LEDs
       case 6:
         for(int i=0; i<5; i++) { digitalWrite(ledPins[i], HIGH); }
         timer_init = millis() + 200;
@@ -166,7 +171,7 @@ void finger() {
         timer_init = millis() + 50;
         init_step++;
         break;
-      // Now take "min" values, when hand is outstretched
+      // Step 8: Now take "min" values, when hand is open outstretched
       case 8:
         for(int i=0; i<5; i++) { digitalWrite(ledPins[i], HIGH); }
         timer_init = millis() + 500;
@@ -181,7 +186,6 @@ void finger() {
         lsc.runActionGroup(0, 1);
         turn_on = false;
         break;
-
       default:
         break;
     }
@@ -192,21 +196,23 @@ void finger() {
 void update_mpu6050() {
   static uint32_t timer_u;
   if (timer_u < millis()) {
-    // put your main code here, to run repeatedly:
     timer_u = millis() + 20;
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    ax0 = ((float)(ax)) * 0.3 + ax0 * 0.7;  //对读取到的值进行滤波
+	// Filter the raw values
+    ax0 = ((float)(ax)) * 0.3 + ax0 * 0.7;
     ay0 = ((float)(ay)) * 0.3 + ay0 * 0.7;
     az0 = ((float)(az)) * 0.3 + az0 * 0.7;
-    ax1 = (ax0 - ax_offset) /  8192.0;  // 校正，并转为重力加速度的倍数
+	// Corrected and converted to multiples of gravitational acceleration
+    ax1 = (ax0 - ax_offset) /  8192.0;
     ay1 = (ay0 - ay_offset) /  8192.0;
     az1 = (az0 - az_offset) /  8192.0;
-
-    gx0 = ((float)(gx)) * 0.3 + gx0 * 0.7;  //对读取到的角速度的值进行滤波
+	// Filter the raw angular velocity values
+    gx0 = ((float)(gx)) * 0.3 + gx0 * 0.7;
     gy0 = ((float)(gy)) * 0.3 + gy0 * 0.7;
     gz0 = ((float)(gz)) * 0.3 + gz0 * 0.7;
-    gx1 = (gx0 - gx_offset);  //校正角速度
+	// Corrected angular velocity
+    gx1 = (gx0 - gx_offset);
     gy1 = (gy0 - gy_offset);
     gz1 = (gz0 - gz_offset);
 
@@ -224,7 +230,7 @@ void update_mpu6050() {
   }
 }
 
-//打印数据
+// Debug
 void print_data() {
   static uint32_t timer_p;
   static uint32_t timer_printlog;
@@ -249,92 +255,83 @@ void print_data() {
   }
 }
 
-
-
 // Hexapod
 void run() {
   static uint32_t timer;
-  static uint32_t step;
   static int act;
   static int last_act;
   static uint8_t count = 0;
   if (timer > millis())
     return;
   timer = millis() + 80;
-  if (radianY_last < -35 && radianY_last > -90 && data[3] < 1200  && data[2] > 2000) // 手掌右倾角度大于35度且小于90度， 中指伸出无名指弯曲
-  {
-    act = TURN_RIGHT; //右转
+  // Palm tilted 35-90 degrees right, middle finger straight, ring finger bent  
+  if (radianY_last < -35 && radianY_last > -90 && data[3] < 1200  && data[2] > 2000) {
+    act = TURN_RIGHT;
   }
-  if (radianY_last < 90 && radianY_last > 35 && data[3] < 1200 && data[2] > 2000)    // 手掌左倾角度大于35度且小于90度， 中指伸出无名指弯曲
-  {
-    act = TURN_LEFT; //左转
+  // Palm tilted 35-90 degrees left, middle finger straight, ring finger bent
+  if (radianY_last < 90 && radianY_last > 35 && data[3] < 1200 && data[2] > 2000) {
+    act = TURN_LEFT;
   }
-  if ((radianY_last < 15 && radianY_last > -15) && data[2] < 600)  //手心朝下，握拳（中指弯曲），停止
-  {
+  // Fist, palm pointing down
+  if ((radianY_last < 15 && radianY_last > -15) && data[2] < 600) {
     act = STOP;
   }
-  if ((radianY_last < 15 &&  radianY_last > -15 ) && data[2] > 2100 && data[3] > 2100)  //手心朝下，张开手（中指伸直），前进
-  {
+  // Flat open hand, palm down
+  if ((radianY_last < 15 &&  radianY_last > -15 ) && data[2] > 2100 && data[3] > 2100) {
     act = GO_FORWARD;
   }
-  if ((radianY_last < -130 ||  radianY_last > 130 ) && data[2] < 1200 && data[4] > 2000)  //手心朝上， 中指弯曲，小拇指伸直（蜘蛛侠动作）， 后退
-  {
+  // Palm up, middle finger bent, little finger straight (Spiderman web-slinging pose)
+  if ((radianY_last < -130 ||  radianY_last > 130 ) && data[2] < 1200 && data[4] > 2000) {
     act = GO_BACK;
   }
-  if ((radianY_last < -130 ||  radianY_last > 130 ) && data[2] > 2000) //手心朝上，张开手，停止
-  {
+  // Open palm pointing up (i.e. "stop")
+  if ((radianY_last < -130 ||  radianY_last > 130 ) && data[2] > 2000) {
     act = STOP;
   }
-  if (act != last_act)
-  {
+  if (act != last_act) {
     last_act = act;
-    if (act == STOP)
-    {
-    if (count != 1) {
-      count = 1;
-      lsc.stopActionGroup();  //停止当前动作组
-      lsc.runActionGroup(0, 1);  //运行指定动作组
-      //   Serial.println("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
-      return;
+    if (act == STOP) {
+		if (count != 1) {
+		  count = 1;
+		  lsc.stopActionGroup();  //停止当前动作组
+		  lsc.runActionGroup(0, 1);  //运行指定动作组
+		  //   Serial.println("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
+		  return;
+		}
     }
+    if (act == GO_FORWARD) {
+		if (count != 2) {
+		  count = 2;
+		  lsc.stopActionGroup();
+		  lsc.runActionGroup(1, 0);
+		  //   Serial.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+		  return;
+		}
     }
-    if (act == GO_FORWARD)
-    {
-    if (count != 2) {
-      count = 2;
-      lsc.stopActionGroup();
-      lsc.runActionGroup(1, 0);
-      //   Serial.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-      return;
+    if (act == GO_BACK) {
+		if (count != 3) {
+		  count = 3;
+		  lsc.stopActionGroup();
+		  lsc.runActionGroup(2, 0);
+		  //   Serial.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+		  return;
+		}
     }
+    if (act == TURN_LEFT) {
+		if (count != 4) {
+		  count = 4;
+		  lsc.stopActionGroup();
+		  lsc.runActionGroup(3, 0);
+		  return;
+		}
     }
-    if (act == GO_BACK)
-    {
-    if (count != 3) {
-      count = 3;
-      lsc.stopActionGroup();
-      lsc.runActionGroup(2, 0);
-      //   Serial.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
-      return;
-    }
-    }
-    if (act == TURN_LEFT)
-    {
-    if (count != 4) {
-      count = 4;
-      lsc.stopActionGroup();
-      lsc.runActionGroup(3, 0);
-      return;
-    }
-    }
-    if (act == TURN_RIGHT)
-    {
-    if (count != 5) {
-      count = 5;
-      lsc.stopActionGroup();
-      lsc.runActionGroup(4, 0);
-      return;
-    }
+    if (act == TURN_RIGHT) {
+		if (count != 5) {
+		  count = 5;
+		  lsc.stopActionGroup();
+		  lsc.runActionGroup(4, 0);
+		  return;
+		}
     }
   }
 }
@@ -350,12 +347,11 @@ void run1(int mode) {
     pos = ServoPwmSet[4];
   else
     pos = 2750 - ServoPwmSet[4];
-  lsc.moveServos(5, 30, 1, 3050 - ServoPwmSet[0], 2, ServoPwmSet[1], 3, ServoPwmSet[2], 4, ServoPwmSet[3], 5, pos);//控制每个手指
+  lsc.moveServos(5, 30, 1, 3050 - ServoPwmSet[0], 2, ServoPwmSet[1], 3, ServoPwmSet[2], 4, ServoPwmSet[3], 5, pos);
 }
 
-//具体向小车发送数据
-void car_control(byte motor1, byte motor2)
-{
+// Send car data
+void car_control(byte motor1, byte motor2) {
   byte buf[6];
   buf[0] = buf[1] = 0x55;
   buf[2] = 0x04;
@@ -366,175 +362,100 @@ void car_control(byte motor1, byte motor2)
 }
 
 // Car
-void run2()
-{
+void run2() {
   static uint32_t timer;
-  static uint32_t step;
-  static uint8_t count = 0;
-  int act = 0;
-  static int last_act;
   if (timer > millis())
     return;
   timer = millis() + 100;
-  if (data[2] < 600 && (radianY_last < -30 && radianY_last > -90))
-  {
+  
+  if (data[2] < 600 && (radianY_last < -30 && radianY_last > -90)) {
     car_control(100, -100);
   }
-  else if (data[2] < 600  && (radianY_last > 30 && radianY_last < 90))
-  {
+  else if (data[2] < 600  && (radianY_last > 30 && radianY_last < 90)) {
    car_control(-100, 100); 
   }
-  else if (data[2] < 600 && abs(radianY_last) < 30 )
-  {
+  else if (data[2] < 600 && abs(radianY_last) < 30 ) {
     car_control(100, 100);
   }
-  else if (data[2] < 600 && (radianY_last < -130 ||  radianY_last > 130 ))
-  {
+  else if (data[2] < 600 && (radianY_last < -130 ||  radianY_last > 130 )) {
    car_control(-100, -100); 
   }
-//  else if (radianX_last > -5 && radianX_last < 5 && gx1 < 0)
-//  {
-//   car_control(-100, -100); 
-//  }
   else
     car_control(0, 0); 
 }
 
 // Robot Arm
-void run3()
-{
+void run3() {
   static uint32_t timer;
-  static uint32_t step;
-  int act = 0;
-  static int last_act;
-  static uint8_t mode = 0;
-  static uint8_t mode1 = 0;
-  static uint8_t count = 0;
   if (timer > millis())
     return;
   timer = millis() + 50;
-//    float rl = radianY_last;
-  //  float td = radianX_last;
-  //  rl = rl < -60 ? -60 : rl;
-  //  td = td < -60 ? -60 : td;
-  //  rl = rl > 60 ? 60 : rl;
-  //  td = td > 60 ? 60 : td;
-  //  Serial.println(rl);
-  //  rl = float_map(rl, -60, 60, 500, 2500);
-  //  td = float_map(td, -60, 60, 2500, 500);
-  //  Serial.println(rl);
-  //  lsc.moveServo(6,(uint16_t)rl, 100);
-  //  lsc.moveServo(5,(uint16_t)td, 100);
-  //  lsc.moveServo(1,(uint16_
-  /******************玩法1*******************
-    if (radianY_last < -10)
-    {
-        mode = 1;
-        lsc.stopActionGroup();
-        lsc.runActionGroup(2, 1);
-        return;
-    }
-    else if (radianY_last > 10)
-    {
-        mode = 1;
-        lsc.stopActionGroup();
-        lsc.runActionGroup(1, 1);
-        return;
-    }
-    if (mode)
-    {
-      if ((radianY_last < 15 && radianY_last > -15) && data[2] < 600)
-      {
-        if (mode1 != 2) {
-          mode = 0;
-          mode1 = 2;
-          lsc.stopActionGroup();
-          lsc.moveServos(3, 1000, 1, 725, 3, 893, 4, 871);
-          delay(1000);
-          lsc.moveServos(1, 1000, 5, 1943);
-          delay(1000);
-          lsc.moveServos(1, 1000, 1, 1354);
-          delay(1000);
-          lsc.moveServos(1, 1000, 5, 1381);
-          delay(1000);
-          return;
-        }
-      }
-     if ((radianY_last < 15 && radianY_last > -15) && data[2] > 2000)
-    {
-        if (mode1 == 2) {
-          mode1 = 0;
-          mode = 0; 
-          lsc.stopActionGroup();
-          lsc.moveServos(4, 1000, 1, 1354, 3, 893, 4, 871, 5, 1943);
-          delay(1000);
-          lsc.moveServos(1, 1000, 1, 725);
-          delay(1000);
-          lsc.moveServos(1, 1000, 5, 1381);
-          delay(1000);
-          return;
-        }
-    }
+  static float RadianY_Las = 0;
+  // Make a fist and rotate it to control the rotation of the No. 6 servo
+  if (data[1] < 1200 && data[2] < 1000 && data[3] < 1000) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(6, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-********************************************/
-/**************玩法2************************/
-      static float RadianY_Las = 0;
-  if (data[1] < 1200 && data[2] < 1000 && data[3] < 1000)  //握拳旋转控制6号舵机转动
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(6, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
-  } 
-  else if ( data[0] > 1400 && data[1] > 1400 && data[2] > 1400 && data[3] > 1400) //五指张开旋转控制5号舵机转动
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(5, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
+  // Five fingers open and rotate to control the rotation of No. 5 servo
+  else if ( data[0] > 1400 && data[1] > 1400 && data[2] > 1400 && data[3] > 1400) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(5, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-  else if (data[1] > 1400 && data[2] < 1000 && data[3] < 1000 ) //食指伸直旋转控制1号舵机
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(1, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
+  // Straighten the index finger and rotate to control the No. 1 servo
+  else if (data[1] > 1400 && data[2] < 1000 && data[3] < 1000 ) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(1, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-  else if (data[1] > 1400 && data[2] > 1400 && data[3] < 1000 ) //食指和中指伸直控制2号舵机
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(2, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
+  // Straighten the index and middle fingers to control the No. 2 servo
+  else if (data[1] > 1400 && data[2] > 1400 && data[3] < 1000 ) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(2, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-  else if (data[1] < 1400 && data[2] > 1200 && data[3] > 1000 ) //中指无名指小指伸直控制3号舵机
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(3, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
+  // The middle finger, the ring finger, and the little finger are straightened to control the No. 3 servo
+  else if (data[1] < 1400 && data[2] > 1200 && data[3] > 1000 ) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(3, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-  else if (data[0] < 1400 && data[1] > 1400 && data[2] > 1400 && data[3] > 1400) //食指中指无名指小指伸直控制4号舵机
-  {
-      if (radianY_last < 90 && radianY_last > -90)
-      {
-          lsc.moveServo(4, 1500 + radianY_last*10, 50);
-          delay(50);
-      }
+  // The index finger, the middle finger, the ring finger, and the little finger are straightened to control the No. 4 servo
+  else if (data[0] < 1400 && data[1] > 1400 && data[2] > 1400 && data[3] > 1400) {
+	if (radianY_last < 90 && radianY_last > -90) {
+		lsc.moveServo(4, 1500 + radianY_last*10, 50);
+		delay(50);
+	}
   }
-/*********************************************/
 }
 
-
-
-
-
 void loop() {
+
+  /* DEBUG
+  byte buf[5];
+  for(int i=0; i<5; i++){
+    int val = analogRead(fingerPins[i]);
+    // Scale raw reading into 0-255 range of a single byte
+    buf[i] = constrain(map(val, 0, maxReadings[i], 0, 255), 0, 255);
+    // Print raw values
+    // Serial.print(val);
+    // Print byte value
+    Serial.print(buf[i], HEX);
+    if(i<4) Serial.print(",");
+    else Serial.println("");
+  }
+  Bth.write(buf, 5);
+  Serial.write(buf, 5);
+  Serial.println("");
+  delay(100);
+  */	
+	
   // Update finger inputs
   finger();
   // Update gyro sensor input
@@ -543,17 +464,17 @@ void loop() {
   // Only execute run function after startup calibration complete
   if (turn_on == false) {
     // Key has been released
-    if(key_state == true && digitalRead(7) == true){
+    if(key_state == true && digitalRead(funcButtonPin) == true) {
       // Wait 30ms to debounce before resetting state
       delay(30);
-      if(digitalRead(7) == true)
+      if(digitalRead(funcButtonPin) == true)
         key_state = false;
     }
     // Key has been pressed
-    if (digitalRead(7) == false && key_state == false) {
+    if (digitalRead(funcButtonPin) == false && key_state == false) {
       // Debounce
       delay(30);
-      if (digitalRead(7) == false) {
+      if (digitalRead(funcButtonPin) == false) {
         key_state = true;
         if(mode == 5) { mode = 0; }
         else { mode++; }
@@ -591,37 +512,3 @@ void loop() {
   // Print debug output
   print_data();
 }
-
-
-/*
-void loop() {
-
-
-
-
-  byte buf[5];
-
-
-
-
-  for(int i=0; i<5; i++){
-    int val = analogRead(fingerPins[i]);
-    // Scale raw reading into 0-255 range of a single byte
-    buf[i] = constrain(map(val, 0, maxReadings[i], 0, 255), 0, 255);
-
-    // Print raw values
-    // Serial.print(val);
-    // Print byte value
-    Serial.print(buf[i], HEX);
-    if(i<4) Serial.print(",");
-    else Serial.println("");
-    
-    
-  }
-
-  Bth.write(buf, 5);
-  Serial.write(buf, 5);
-  Serial.println("");
-  delay(100);
-}
-*/
