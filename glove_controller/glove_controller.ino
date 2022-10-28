@@ -61,6 +61,12 @@ float radianY_last;
 
 void setup() {
   Serial.begin(115200);
+  Serial.println(__FILE__ __DATE__);
+  Serial.println("Please ensure fist clenched on startup");
+  delay(500);
+  Serial.println("Wait until LEDs flash");
+  delay(500);
+  Serial.println("Then fully extend fingers");
   // Initialise pins
   pinMode(funcButtonPin, INPUT_PULLUP);
   for(int i=0;i<5; i++) {
@@ -478,9 +484,10 @@ void loop() {
         key_state = true;
         if(mode == 5) { mode = 0; }
         else { mode++; }
+        Serial.println(mode);
         // Light up LEDs to indicate the new mode
         for(int i=0; i<5; i++) { 
-          digitalWrite(fingerPins[i], i<mode ? LOW : HIGH); 
+          digitalWrite(ledPins[i], i<mode ? LOW : HIGH); 
         }
       }
     }
@@ -507,6 +514,10 @@ void loop() {
     // Robot arm
     if (mode == 3)
       run3();
+    // Blank
+    if(mode == 5)
+      ;
+      
   }
 
   // Print debug output
