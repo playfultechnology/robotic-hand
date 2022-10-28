@@ -25,6 +25,9 @@ const byte funcButtonPin = 7;
 const byte ledPins[] = {2, 3, 4, 5, 6};
 const byte maxReadings[] = {230, 252, 317, 309, 305};
 
+// Interval (ms) between sending log info to serial monitor
+const int printlogInterval = 2000; 
+
 // GLOBALS
 float min_list[5] = {0, 0, 0, 0, 0};
 float max_list[5] = {255, 255, 255, 255, 255};
@@ -249,14 +252,14 @@ void print_data() {
     Serial.print(", gz:"); Serial.print(gz1);
     Serial.print(", GX:"); Serial.print(radianX_last);
     Serial.print(", GY:"); Serial.println(radianY_last);
-    timer_p = millis() + 500;
+    timer_p = millis() + printlogInterval;
   }
   if (timer_printlog <= millis()) {
     for(int i=0; i<5; i++) {
       Serial.print(data[i]);
       Serial.print(" ");
     }
-    timer_printlog = millis() + 1000;
+    timer_printlog = millis() + printlogInterval;
     Serial.println();
   }
 }
@@ -349,7 +352,7 @@ void run1(int mode) {
     ServoPwmSet[i] = float_map(ServoPwmSet[i], 500, 2500, 1100, 1950);
   }
   int pos = 0;
-  if(mode == 4)
+  if(mode == 0)
     pos = ServoPwmSet[4];
   else
     pos = 2750 - ServoPwmSet[4];
@@ -442,25 +445,6 @@ void run3() {
 }
 
 void loop() {
-
-  /* DEBUG
-  byte buf[5];
-  for(int i=0; i<5; i++){
-    int val = analogRead(fingerPins[i]);
-    // Scale raw reading into 0-255 range of a single byte
-    buf[i] = constrain(map(val, 0, maxReadings[i], 0, 255), 0, 255);
-    // Print raw values
-    // Serial.print(val);
-    // Print byte value
-    Serial.print(buf[i], HEX);
-    if(i<4) Serial.print(",");
-    else Serial.println("");
-  }
-  Bth.write(buf, 5);
-  Serial.write(buf, 5);
-  Serial.println("");
-  delay(100);
-  */	
 	
   // Update finger inputs
   finger();
@@ -493,11 +477,8 @@ void loop() {
     }
 
     // Switch operation mode
-    // Hexapod
-    if(mode == 0)
-      run();
     // Hand
-    if (mode == 1 || mode == 4)  {
+    if (mode == 0 || mode == 1)  {
       static float RadianY_Las = 0;
       run1(mode);
       if (radianY_last < 90 && radianY_last > -90) {
@@ -514,6 +495,9 @@ void loop() {
     // Robot arm
     if (mode == 3)
       run3();
+    // Hexapod
+    if(mode == 4)
+      run(); 
     // Blank
     if(mode == 5)
       ;
