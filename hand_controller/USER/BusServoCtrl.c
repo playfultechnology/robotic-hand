@@ -1,8 +1,6 @@
 #include "include.h"
 
-
-void InitUart2(void)
-{
+void InitUart2(void) {
 	NVIC_InitTypeDef NVIC_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef USART_InitStructure;
@@ -18,7 +16,6 @@ void InitUart2(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
 
 	USART_InitStructure.USART_BaudRate = 115200;
 	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
@@ -43,29 +40,26 @@ void InitUart2(void)
 }
 
 
-void InitBusServoCtrl(void)
-{
+void InitBusServoCtrl(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 
 	InitUart2();//串口2初始化
 	
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);	 //
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;	//
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;		 //推挽输出
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;		 // Push-pull output
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	UART_TX_ENABLE();
 }
 
-void USART2SendDataPacket(uint8 tx[],uint32 count)
-{
+void USART2SendDataPacket(uint8 tx[],uint32 count) {
 	uint32 i;
-	for(i = 0; i < count; i++)
-	{
-		while((USART2->SR&0X40)==0);//循环发送,直到发送完毕
+	for(i = 0; i < count; i++) {
+		while((USART2->SR&0X40)==0); // Loop until transmission complete
 		USART2->DR = tx[i];
-		while((USART2->SR&0X40)==0);//循环发送,直到发送完毕
+		while((USART2->SR&0X40)==0); //Loop until transmission complete
 	}
 }
 
@@ -79,20 +73,17 @@ void USART2_IRQHandler(void)                	//串口2中断服务程序
 	}
 
 }
-void BusServoCtrl(uint8 id,uint8 cmd,uint16 prm1,uint16 prm2)
-{
+
+void BusServoCtrl(uint8 id, uint8 cmd, uint16 prm1, uint16 prm2) {
 	uint32 i;
 	uint8 tx[20];
 	uint8 datalLen = 4;
 	uint32 checkSum = 0;
 
-	switch(cmd)
-	{
-	case SERVO_MOVE_TIME_WRITE:
-		datalLen = SERVO_MOVE_TIME_DATA_LEN;
-		break;
-		
-	
+	switch(cmd) {
+		case SERVO_MOVE_TIME_WRITE:
+			datalLen = SERVO_MOVE_TIME_DATA_LEN;
+			break;
 	}
 	tx[0] = 0x55;
 	tx[1] = 0x55;
@@ -103,8 +94,7 @@ void BusServoCtrl(uint8 id,uint8 cmd,uint16 prm1,uint16 prm2)
 	tx[6] = prm1 >> 8;
 	tx[7] = prm2;
 	tx[8] = prm2 >> 8;
-	for(i = 2; i <= datalLen + 1; i++)
-	{
+	for(i = 2; i <= datalLen + 1; i++) {
 		checkSum += tx[i];
 	}
 	tx[datalLen + 2] = ~checkSum;

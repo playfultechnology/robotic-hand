@@ -1,13 +1,12 @@
 #include "include.h"
 //作者:深圳市乐幻索尔科技有限公司
-//我们的店铺:lobot-zone.taobao.com
 
-
-
-#define ADC_BAT		13		//电池电压的AD检测通道
+// AD detection channel for battery voltage
+#define ADC_BAT		13
 // static bool UartBusy = FALSE;
 
-u32 gSystemTickCount = 0;	//系统从启动到现在的毫秒数
+// The number of milliseconds since the system was started
+u32 gSystemTickCount = 0;
 
 uint8 BuzzerState = 0;
 uint16 Ps2TimeCount = 0;
@@ -19,8 +18,7 @@ static u16 fac_ms=0;//ms延时倍乘数
 //初始化延迟函数
 //SYSTICK的时钟固定为HCLK时钟的1/8
 //SYSCLK:系统时钟
-void InitDelay(u8 SYSCLK)
-{
+void InitDelay(u8 SYSCLK) {
 //	SysTick->CTRL&=0xfffffffb;//bit2清空,选择外部时钟  HCLK/8
 	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);	//选择外部时钟  HCLK/8
 	fac_us=SYSCLK/8;
@@ -32,14 +30,12 @@ void InitDelay(u8 SYSCLK)
 //nms<=0xffffff*8*1000/SYSCLK
 //SYSCLK单位为Hz,nms单位为ms
 //对72M条件下,nms<=1864
-void DelayMs(u16 nms)
-{
+void DelayMs(u16 nms) {
 	u32 temp;
 	SysTick->LOAD=(u32)nms*fac_ms;//时间加载(SysTick->LOAD为24bit)
 	SysTick->VAL =0x00;           //清空计数器
 	SysTick->CTRL=0x01 ;          //开始倒数
-	do
-	{
+	do {
 		temp=SysTick->CTRL;
 	}
 	while(temp&0x01&&!(temp&(1<<16)));//等待时间到达
@@ -48,14 +44,12 @@ void DelayMs(u16 nms)
 }
 //延时nus
 //nus为要延时的us数.
-void DelayUs(u32 nus)
-{
+void DelayUs(u32 nus) {
 	u32 temp;
 	SysTick->LOAD=nus*fac_us; //时间加载
 	SysTick->VAL=0x00;        //清空计数器
 	SysTick->CTRL=0x01 ;      //开始倒数
-	do
-	{
+	do {
 		temp=SysTick->CTRL;
 	}
 	while(temp&0x01&&!(temp&(1<<16)));//等待时间到达
@@ -64,11 +58,7 @@ void DelayUs(u32 nus)
 }
 
 
-
-
-
-void InitLED(void)
-{
+void InitLED(void) {
 
 	GPIO_InitTypeDef  GPIO_InitStructure;
 
@@ -80,9 +70,7 @@ void InitLED(void)
 
 }
 
-void InitKey(void)
-{
-
+void InitKey(void) {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC,ENABLE);
 	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_0;
@@ -90,9 +78,7 @@ void InitKey(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
-void InitBuzzer(void)
-{
-
+void InitBuzzer(void) {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);	 //使能端口时钟
@@ -104,8 +90,8 @@ void InitBuzzer(void)
 
 }
 
-void InitTimer2(void)		//100us
-{
+//100us
+void InitTimer2(void) {
 	NVIC_InitTypeDef NVIC_InitStructure;
 	
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
@@ -133,8 +119,7 @@ void InitTimer2(void)		//100us
 	NVIC_Init(&NVIC_InitStructure);  //根据NVIC_InitStruct中指定的参数初始化外设NVIC寄存器
 }
 
-void InitADC(void)
-{
+void InitADC(void) {
 	ADC_InitTypeDef ADC_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC |RCC_APB2Periph_ADC1	, ENABLE);	   //使能ADC1通道时钟
@@ -142,10 +127,12 @@ void InitADC(void)
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6);   //72M/6=12,ADC最大时间不能超过14M
 	//PA0/1/2/3 作为模拟通道输入引脚
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;//|GPIO_Pin_1|GPIO_Pin_2|GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;		//模拟输入引脚
+	// GPIO_Mode_AIN = "Analog Input Pin"
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	ADC_DeInit(ADC1);  //将外设 ADC1 的全部寄存器重设为缺省值
+	// Reset all registers of peripheral ADC1 to default values
+	ADC_DeInit(ADC1);
 
 	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;	//ADC工作模式:ADC1和ADC2工作在独立模式
 	ADC_InitStructure.ADC_ScanConvMode = DISABLE;	//模数转换工作在单通道模式
@@ -155,10 +142,7 @@ void InitADC(void)
 	ADC_InitStructure.ADC_NbrOfChannel = 1;	//顺序进行规则转换的ADC通道的数目
 	ADC_Init(ADC1, &ADC_InitStructure);	//根据ADC_InitStruct中指定的参数初始化外设ADCx的寄存器
 
-
-
 	ADC_Cmd(ADC1, ENABLE);	//使能指定的ADC1
-
 	ADC_ResetCalibration(ADC1);	//重置指定的ADC1的校准寄存器
 
 	while(ADC_GetResetCalibrationStatus(ADC1));	//获取ADC1重置校准寄存器的状态,设置状态则等待
@@ -171,8 +155,7 @@ void InitADC(void)
 }
 
 
-uint16 GetADCResult(BYTE ch)
-{
+uint16 GetADCResult(BYTE ch) {
 	//设置指定ADC的规则组通道，设置它们的转化顺序和采样时间
 	ADC_RegularChannelConfig(ADC1, ch, 1, ADC_SampleTime_239Cycles5);	//ADC1,ADC通道3,规则采样顺序值为1,采样时间为239.5周期
 
@@ -184,12 +167,10 @@ uint16 GetADCResult(BYTE ch)
 }
 
 
-void CheckBatteryVoltage(void)
-{
+void CheckBatteryVoltage(void) {
 	uint8 i;
 	uint32 v = 0;
-	for(i = 0;i < 8;i++)
-	{
+	for(i = 0;i < 8;i++) {
 		v += GetADCResult(ADC_BAT);
 	}
 	v >>= 3;
@@ -199,82 +180,69 @@ void CheckBatteryVoltage(void)
 
 }
 
-uint16 GetBatteryVoltage(void)
-{//电压毫伏
+// Return voltage in milliVolts
+uint16 GetBatteryVoltage(void) {
 	return BatteryVoltage;
 }
 
-void Buzzer(void)
-{//放到100us的定时中断里面
+void Buzzer(void) {//放到100us的定时中断里面
 	static bool fBuzzer = FALSE;
 	static uint32 t1 = 0;
 	static uint32 t2 = 0;
-	if(fBuzzer)
-	{
-		if(++t1 >= 2)
-		{
+	if(fBuzzer) {
+		if(++t1 >= 2) {
 			t1 = 0;
 			BUZZER = !BUZZER;//2.5KHz
 		}
 	}
-	else
-	{
+	else {
 		BUZZER = 0;
 	}
 
-	
-	if(BuzzerState == 0)
-	{
+	if(BuzzerState == 0) {
 		fBuzzer = FALSE;
 		t2 = 0;
 	}
-	else if(BuzzerState == 1)
-	{
+	else if(BuzzerState == 1) {
 		t2++;
-		if(t2 < 5000)
-		{
+		if(t2 < 5000) {
 			fBuzzer = TRUE;
 		}
-		else if(t2 < 10000)
-		{
+		else if(t2 < 10000) {
 			fBuzzer = FALSE;
 		}
-		else
-		{
+		else {
 			t2 = 0;
 		}
 	}
 }
 
 BOOL manual = FALSE;
-void TIM2_IRQHandler(void)   //TIM2中断
-{//定时器2中断  100us
+
+// Timer2 Interrupt Handler
+void TIM2_IRQHandler(void) { //定时器2中断  100us
 	static uint32 time = 0;
 	static uint16 timeBattery = 0;
 	if(TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)  //检查指定的TIM中断发生与否:TIM 中断源
 	{
 		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);    //清除TIMx的中断待处理位:TIM 中断源
 		
-		
 		Buzzer();
-		if(++time >= 10)
-		{
+		if(++time >= 10) {
 			time = 0;
 			gSystemTickCount++;
 			Ps2TimeCount++;
-			if(GetBatteryVoltage() < 5500)//小于5.5V报警
-			{
+			// Alarm if < 5.5V
+			if(GetBatteryVoltage() < 5500) {
 				timeBattery++;
-				if(timeBattery > 5000)//持续5秒
-				{
+				// 5 second duration
+				if(timeBattery > 5000) {
 					BuzzerState = 1;
 				}
 			}
-			else
-			{
+			else {
 				timeBattery = 0;
-				if(manual == FALSE)
-				{
+				if(manual == FALSE) {
 					BuzzerState = 0;
 				}
 			}
@@ -282,20 +250,18 @@ void TIM2_IRQHandler(void)   //TIM2中断
 	}
 }
 
-void TaskTimeHandle(void)
-{
+void TaskTimeHandle(void) {
 	static uint32 time = 10;
 	static uint32 times = 0;
-	if(gSystemTickCount > time)
-	{
+	if(gSystemTickCount > time) {
 		time += 10;
 		times++;
-		if(times % 2 == 0)//20ms
-		{
+		// 20ms
+		if(times % 2 == 0) {
 			ServoPwmDutyCompare();
 		}
-		if(times % 50 == 0)//500ms
-		{
+		//500ms
+		if(times % 50 == 0) {
 			CheckBatteryVoltage();
 		}
 	}
@@ -304,8 +270,7 @@ void TaskTimeHandle(void)
 
 int16 BusServoPwmDutySet[8] = {500,500,500,500,500,500,500,500};
 uint8 i;
-void TaskRun(void)
-{
+void TaskRun(void) {
 	static bool Ps2State = FALSE;
 	static uint8 mode = 0;
 	uint16 ly, rx,ry;
@@ -313,29 +278,23 @@ void TaskRun(void)
 	static uint8 keycount = 0;
 	TaskTimeHandle();
 	
-	
 	TaskPCMsgHandle();
 	TaskBLEMsgHandle();
 	TaskRobotRun();
 
-	if(KEY == 0)
-	{
+	if(KEY == 0) {
 		DelayMs(60);
 		{
-			if(KEY == 0)
-			{
+			if(KEY == 0) {
 				keycount++;
 			}
-			else
-			{
-				if (keycount > 20)
-				{
+			else {
+				if (keycount > 20) {
 					keycount = 0;
 					FullActRun(100,0);
 					return;
 				}
-				else
-				{
+				else {
 					keycount = 0;
 					LED = ~LED;
 					FullActRun(100,1);	
@@ -344,14 +303,11 @@ void TaskRun(void)
 		}
 	}
 	
-	if(Ps2TimeCount > 45)
-	{
+	if(Ps2TimeCount > 45) {
 		Ps2TimeCount = 0;
 		PS2KeyValue = PS2_DataKey();
-		if(mode == 1)
-		{
-			if( PS2_Button( PSB_SELECT ) & PS2_ButtonPressed( PSB_START ) )
-			{
+		if(mode == 1) {
+			if( PS2_Button( PSB_SELECT ) & PS2_ButtonPressed( PSB_START ) ) {
 				mode = 0;
 				Ps2State = 0;
 				manual = TRUE;
@@ -366,16 +322,12 @@ void TaskRun(void)
 				manual = FALSE;
 				LED=~LED;
 			}
-			else
-			{
-				if(PS2KeyValue && !PS2_Button(PSB_SELECT))
-			{
-				LED=~LED;
-			}
-						
-				switch( PS2KeyValue )
-				{
-					//根据按下的按键，控制舵机转动
+			else {
+				if(PS2KeyValue && !PS2_Button(PSB_SELECT)) {
+					LED=~LED;
+				}
+				// Rotate the servo according to the button press
+				switch( PS2KeyValue ) {
 					case PSB_PAD_LEFT:
 						ServoSetPluseAndTime( 6, ServoPwmDutySet[6] + 20, 50 );
 						BusServoPwmDutySet[6] = BusServoPwmDutySet[6] + 10;
@@ -543,20 +495,20 @@ void TaskRun(void)
 				PS2KeyValue = 0;
 			}
 		}
-		else
-		{	
-			 if( PS2_Button( PSB_SELECT ) && PS2_ButtonPressed( PSB_START ) )  //检查是不是 SELECT按钮被按住，然后按下START按钮， 是的话，切换模式
-        {
-          mode = 1; //将模式变为1， 就单舵机模式
-          FullActStop();  //停止动作组运行
-          Ps2State = 0;  //清除动作组模式用到的标志。
-          ServoSetPluseAndTime( 1, 1500, 1000 );  //将机械臂的舵机都转到1500的位置
-          ServoSetPluseAndTime( 2, 1500, 1000 );
-          ServoSetPluseAndTime( 3, 1500, 1000 );
-          ServoSetPluseAndTime( 4, 1500, 1000 );
-          ServoSetPluseAndTime( 5, 1500, 1000 );
-          ServoSetPluseAndTime( 6, 1500, 1000 );
-					manual = TRUE;
+		else {
+			// If SELECT button is held down and START is pressed, switch modes
+			if(PS2_Button(PSB_SELECT) && PS2_ButtonPressed(PSB_START)) {
+				// Change the mode to 1, the single servo mode
+				mode = 1;
+				FullActStop();  //停止动作组运行
+				Ps2State = 0;  //清除动作组模式用到的标志。
+				ServoSetPluseAndTime( 1, 1500, 1000 );  //将机械臂的舵机都转到1500的位置
+				ServoSetPluseAndTime( 2, 1500, 1000 );
+				ServoSetPluseAndTime( 3, 1500, 1000 );
+				ServoSetPluseAndTime( 4, 1500, 1000 );
+				ServoSetPluseAndTime( 5, 1500, 1000 );
+				ServoSetPluseAndTime( 6, 1500, 1000 );
+				manual = TRUE;
 				BuzzerState = 1;
 				LED=~LED;
 				DelayMs(80);
@@ -568,128 +520,111 @@ void TaskRun(void)
 				manual = FALSE;
 				LED=~LED;
         }
-				else
-				{
-			if(PS2KeyValue && !Ps2State && !PS2_Button(PSB_SELECT))
-			{
+		else {
+			if(PS2KeyValue && !Ps2State && !PS2_Button(PSB_SELECT)) {
 				LED=~LED;
 			}
 
-			switch(PS2KeyValue)
-			{
+			switch(PS2KeyValue) {
 				case 0:
-					if(Ps2State)
-					{
+					if(Ps2State) {
 						Ps2State = FALSE;
 					}
 					break;
 				
 				case PSB_START:
-					if(!Ps2State)
-					{
+					if(!Ps2State) {
 						FullActRun(0,1);
 					}
 					Ps2State = TRUE;
 					break;
 				
 				case PSB_PAD_UP:
-					if(!Ps2State)
-					{
+					if(!Ps2State) {
 						FullActRun(1,1);
 					}
 					Ps2State = TRUE;
 					break;
 				
 				case PSB_PAD_DOWN:
-					if(!Ps2State)
-					{
+					if(!Ps2State) {
 						FullActRun(2,1);
 					}
 					Ps2State = TRUE;
 					break;
 				
 				case PSB_PAD_LEFT:
-					if(!Ps2State)
-					{
-					FullActRun(3,1);
-				}
-				Ps2State = TRUE;
-				break;
+					if(!Ps2State) {
+						FullActRun(3,1);
+					}
+					Ps2State = TRUE;
+					break;
 				
-			case PSB_PAD_RIGHT:
-				if(!Ps2State)
-				{
-					FullActRun(4,1);
-				}
-				Ps2State = TRUE;
-				break;
+				case PSB_PAD_RIGHT:
+					if(!Ps2State) {
+						FullActRun(4,1);
+					}
+					Ps2State = TRUE;
+					break;
 
-			case PSB_TRIANGLE:
-				if(!Ps2State)
-				{
-					FullActRun(5,1);
-				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_CROSS:
-				if(!Ps2State)
-				{
-					FullActRun(6,1);
-				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_SQUARE:
-				if(!Ps2State)
-				{
-					FullActRun(11,1);
-				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_CIRCLE:
-				if(!Ps2State)
-				{
-					FullActRun(12,1);
-				}
-				Ps2State = TRUE;
-				break;
+				case PSB_TRIANGLE:
+					if(!Ps2State) {
+						FullActRun(5,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_CROSS:
+					if(!Ps2State) {
+						FullActRun(6,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_SQUARE:
+					if(!Ps2State) {
+						FullActRun(11,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_CIRCLE:
+					if(!Ps2State) {
+						FullActRun(12,1);
+					}
+					Ps2State = TRUE;
+					break;
 
-			case PSB_L1:
-				if(!Ps2State)
-				{
-					FullActRun(13,1);
+				case PSB_L1:
+					if(!Ps2State) {
+						FullActRun(13,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_R1:
+					if(!Ps2State) {
+						FullActRun(14,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_L2:
+					if(!Ps2State) {
+						FullActRun(15,1);
+					}
+					Ps2State = TRUE;
+					break;
+					
+				case PSB_R2:
+					if(!Ps2State) {
+						FullActRun(16,1);
+					}
+					Ps2State = TRUE;
+					break;
 				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_R1:
-				if(!Ps2State)
-				{
-					FullActRun(14,1);
-				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_L2:
-				if(!Ps2State)
-				{
-					FullActRun(15,1);
-				}
-				Ps2State = TRUE;
-				break;
-				
-			case PSB_R2:
-				if(!Ps2State)
-				{
-					FullActRun(16,1);
-				}
-				Ps2State = TRUE;
-				break;
+				PS2KeyValue = 0;
+			}
 		}
-	  PS2KeyValue = 0;
 	}
-	}
-}
 }
