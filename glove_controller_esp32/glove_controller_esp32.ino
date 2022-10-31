@@ -14,7 +14,9 @@
 #include "lcdgfx.h"
 
 // CONSTANTS
+// BLE device, service, and characteristic UID of the robot hand.
 // These values were identified using the "BLE scanner" app on an Android phone
+// and connecting to the device advertised as "Hiwonder"
 static BLEAddress pServerAddress("48:87:2D:62:A8:89");
 static BLEUUID serviceUUID("0000ffe0-0000-1000-8000-00805f9b34fb");
 static BLEUUID charUUID("0000ffe1-0000-1000-8000-00805f9b34fb");
